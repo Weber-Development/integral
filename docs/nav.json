@@ -1,0 +1,32 @@
+{
+  "sections": [
+    {
+      "label": "Start",
+      "items": ["introduction", "getting-started"]
+    },
+    {
+      "label": "Guides",
+      "items": [
+        "guides/plans",
+        "guides/license-keys",
+        "guides/polar",
+        "guides/offline",
+        "guides/react",
+        "guides/cli",
+        "guides/updates"
+      ]
+    },
+    {
+      "label": "Reference",
+      "items": ["reference/api"]
+    },
+    {
+      "label": "Integral Pro",
+      "items": ["pro/overview", "pro/server", "pro/portal"]
+    },
+    {
+      "label": "Legal",
+      "items": ["legal"]
+    }
+  ]
+}
