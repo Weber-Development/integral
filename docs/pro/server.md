@@ -47,9 +47,22 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | `POST /webhook` | Polar webhook endpoint. Verifies the signature and age of each delivery |
 | `POST /exchange` `{ key }` | Polar license key → the customer's signed license |
 | `POST /refresh` `{ license }` | Current version of a license, e.g. after a renewal |
+| `GET /revocations` | Signed list of all revoked licenses (plain text, cached 5 minutes), since 0.2.0 |
 | `GET /public-key` | Public key derived from the private key |
 
 In Polar, add a webhook (Settings → Webhooks) to `https://your-app/api/integral/webhook` with the events `order.paid`, `order.refunded` and all `subscription.*` events. For `/exchange`, attach a **License Keys** benefit to the products.
+
+## Revocation list
+
+A refund or `server.revoke(id)` re-signs the license with an end date. An app that only checks offline never sees the new version, and a lifetime license had no end date before. `GET /revocations` (or `server.revocationList()`) returns a list of every revoked license id, signed with the same key. The portal downloads it automatically. In other apps, pass it to `verifyLicense`:
+
+```ts
+const list = await verifyRevocationList(await (await fetch("/api/integral/revocations")).text(), {
+  publicKey,
+  product: "my-app",
+});
+await verifyLicense(license, { publicKey, revocations: list });
+```
 
 ## Lifecycle
 
