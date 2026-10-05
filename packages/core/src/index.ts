@@ -30,6 +30,21 @@ export {
   type VerifyOptions,
   verifyLicense,
 } from "./license.js";
+export { machineId } from "./machine.js";
+export {
+  REVOCATION_PREFIX,
+  type RevocationInput,
+  type RevocationList,
+  signRevocationList,
+  type VerifyRevocationOptions,
+  verifyRevocationList,
+} from "./revocation.js";
+export {
+  type LicenseState,
+  type LicenseStatus,
+  type LicenseStatusOptions,
+  licenseStatus,
+} from "./status.js";
 export type {
   LicenseCustomer,
   LicenseInvalidReason,

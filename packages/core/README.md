@@ -4,7 +4,7 @@ Licenses, plans and feature entitlements for developers who sell software. Signe
 
 | Package | What it does |
 |---|---|
-| [`@sweberdev/integral`](packages/core) | Sign and verify licenses, plans and entitlements, Polar license keys, offline grace, CLI |
+| [`@sweberdev/integral`](packages/core) | Sign and verify licenses, plans and entitlements, Polar license keys, offline grace, revocation lists, device binding, CLI |
 | [`@sweberdev/integral-react`](packages/react) | `IntegralProvider`, `<Feature>`, `<Limit>`, `useFeature`, `useLicenseCheck` |
 
 ```sh
@@ -42,6 +42,14 @@ const result = await polar.validate(key); // no access token needed
 ```ts
 await signLicense({ product: "my-app", plan: "pro", updatesUntil: "2027-10-05" }, privateKey);
 coversRelease(license, BUILD_DATE); // false for versions released after the update period
+```
+
+### Revocation lists, device binding and trials
+
+```ts
+const list = await verifyRevocationList(downloaded, { publicKey }); // signed, works offline
+await verifyLicense(key, { publicKey, revocations: list, machine: await machineId(hostId) });
+licenseStatus(license); // { state: "expiring", trial: true, daysLeft: 6, ... }
 ```
 
 Documentation and live demo: [packages.sweber.dev/integral](https://packages.sweber.dev/integral)

@@ -24,10 +24,17 @@ npx integral issue --product my-app --plan pro \
 | `--email`, `--name`, `--customer-id` | Customer |
 | `--expires` | Hard expiry |
 | `--updates-until` | End of updates |
+| `--machine` | Bind to one device (id from `machineId()`) |
+| `--trial` | Mark as trial license |
 | `--id`, `--kid` | License id, key id |
 
 ```sh
 npx integral verify <license> --public-key <key> --product my-app   # exit code 0 or 1
 npx integral inspect <license>                                       # shows the content, unchecked
 echo "$LICENSE" | npx integral verify - --public-key "$INTEGRAL_PUBLIC_KEY"
+```
+
+```sh
+npx integral revoke lic_123 lic_456 --product my-app > revoked.txt   # signed revocation list
+npx integral verify <license> --public-key <key> --revocations revoked.txt --machine <id>
 ```

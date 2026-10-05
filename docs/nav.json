@@ -11,6 +11,7 @@
         "guides/license-keys",
         "guides/polar",
         "guides/offline",
+        "guides/revocation",
         "guides/react",
         "guides/cli",
         "guides/updates"

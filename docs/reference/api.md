@@ -9,7 +9,7 @@ description: All exports of @sweberdev/integral and @sweberdev/integral-react.
 |---|---|
 | `generateKeyPair()` | New Ed25519 key pair as base64url strings `{ publicKey, privateKey }` |
 | `signLicense(input, privateKey)` | Signs a license, returns the license key. `id` and `iat` are added if missing; dates may be `Date` or ISO strings |
-| `verifyLicense(license, options)` | `{ valid: true, license }` or `{ valid: false, reason, license? }`. Options: `publicKey` (string or array), `product`, `now`, `clockTolerance` |
+| `verifyLicense(license, options)` | `{ valid: true, license }` or `{ valid: false, reason, license? }`. Options: `publicKey` (string or array), `product`, `now`, `clockTolerance`, `revocations`, `machine` |
 | `decodeLicense(license)` | Content without checking the signature, or `null` |
 | `coversRelease(license, releasedAt)` | `false` if the release is after `updatesUntil` |
 | `definePlans(plans)` | Validates and returns plan definitions |
@@ -19,9 +19,13 @@ description: All exports of @sweberdev/integral and @sweberdev/integral-react.
 | `EntitlementError` | Thrown by `require()`; has `feature` and `plan` |
 | `withOfflineGrace(check, options)` | Cache and grace period for online checks, see [Offline grace](../guides/offline.md) |
 | `memoryStorage()`, `browserStorage(prefix?)` | Storage for `withOfflineGrace` |
-| `LICENSE_PREFIX` | `"int1"` |
+| `signRevocationList({ ids, product?, iat? }, privateKey)` | Signed list of revoked license ids (`intr1.…`), see [Revocation](../guides/revocation.md) |
+| `verifyRevocationList(token, { publicKey, product? })` | Content of a revocation list, or `null` if invalid |
+| `machineId(...values)` | Anonymous SHA-256 device id for `machine` |
+| `licenseStatus(license, { now?, warnDays? })` | `{ state, trial, daysLeft, updatesEnded, updatesDaysLeft }` |
+| `LICENSE_PREFIX`, `REVOCATION_PREFIX` | `"int1"`, `"intr1"` |
 
-Types: `LicensePayload`, `LicenseInput`, `LicenseVerification`, `LicenseInvalidReason`, `Plans`, `PlanDefinition`, `ResolvedPlan`, `Entitlements`, `LimitCheck`, `LimitValue`, `LicenseStorage`, `CheckOutcome`, `CachedOutcome`.
+Types: `LicensePayload`, `RevocationList`, `LicenseStatus`, `LicenseState`, `LicenseInput`, `LicenseVerification`, `LicenseInvalidReason`, `Plans`, `PlanDefinition`, `ResolvedPlan`, `Entitlements`, `LimitCheck`, `LimitValue`, `LicenseStorage`, `CheckOutcome`, `CachedOutcome`.
 
 ## `@sweberdev/integral/polar`
 
