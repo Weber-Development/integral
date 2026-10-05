@@ -1,5 +1,6 @@
 import { fromBase64Url, fromUtf8, toBase64Url, utf8 } from "./encoding.js";
 import { importPrivateKey, importPublicKey, sign, verify } from "./keys.js";
+import type { RevocationList } from "./revocation.js";
 import type { LicensePayload, LicenseVerification } from "./types.js";
 
 /** Prefix of every license key. Bumped only on incompatible format changes. */
@@ -69,6 +70,16 @@ export interface VerifyOptions {
   now?: Date;
   /** Allowed clock difference in seconds for `nbf` and `exp`. Default 300. */
   clockTolerance?: number;
+  /**
+   * Revoked license ids: a list checked with `verifyRevocationList()`, or plain ids you
+   * already trust. A revoked license is rejected with reason "revoked".
+   */
+  revocations?: RevocationList | Iterable<string> | null;
+  /**
+   * The current device's id from `machineId()`. A license bound to another device (or bound
+   * to any device while this option is missing) is rejected with reason "wrong_machine".
+   */
+  machine?: string;
 }
 
 /** Verifies the signature, product and dates of a license key. Works offline. */
@@ -110,6 +121,18 @@ export async function verifyLicense(
   }
   if (license.exp && now - tolerance > Date.parse(license.exp)) {
     return { valid: false, reason: "expired", license };
+  }
+  if (options.revocations) {
+    const ids =
+      "ids" in options.revocations && Array.isArray(options.revocations.ids)
+        ? options.revocations.ids
+        : (options.revocations as Iterable<string>);
+    for (const id of ids) {
+      if (id === license.id) return { valid: false, reason: "revoked", license };
+    }
+  }
+  if (license.machine && license.machine !== options.machine) {
+    return { valid: false, reason: "wrong_machine", license };
   }
   return { valid: true, license };
 }

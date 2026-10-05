@@ -35,6 +35,10 @@ export interface LicensePayload {
    * older versions keep working. Use instead of `exp` for "keep what you paid for" licenses.
    */
   updatesUntil?: string;
+  /** Binds the license to one device. Create the value with `machineId()`. */
+  machine?: string;
+  /** Marks a trial license. Shown by `licenseStatus()`; combine with `exp`. */
+  trial?: boolean;
   /** Id of the signing key, for key rotation. */
   kid?: string;
   /** Free-form data, e.g. an order id. Keep it small. */
@@ -47,7 +51,9 @@ export type LicenseInvalidReason =
   | "bad_signature"
   | "wrong_product"
   | "not_yet_valid"
-  | "expired";
+  | "expired"
+  | "revoked"
+  | "wrong_machine";
 
 export type LicenseVerification =
   | { valid: true; license: LicensePayload }
