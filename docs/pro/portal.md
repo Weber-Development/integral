@@ -63,6 +63,23 @@ Warns before a trial, a license or its update period ends, with an optional rene
 
 Shows which plan includes a feature and links to its checkout, for example a Polar checkout link. It renders nothing if the feature is already included.
 
+## useLease
+
+```tsx
+const { status, limit, release, retry } = useLease({ holder: "window-1" });
+if (status === "full") return <p>All {limit} seats are in use. <button onClick={retry}>Try again</button></p>;
+```
+
+Holds one seat of a floating license while the component is mounted: it asks `endpoint/lease`, repeats as a heartbeat (a third of the lease time, at least 10 seconds) and gives the seat back on unmount. `status` is `idle`, `acquiring`, `held`, `full` or `error`. Options: `holder`, `label`, `ttlSeconds`, `heartbeatSeconds`, `enabled`. Since 0.4.0.
+
+## LicenseAdmin
+
+```tsx
+<LicenseAdmin endpoint="/api/integral-admin" token={adminToken} />
+```
+
+An unstyled admin view for the [admin API](./admin.md): search, license details, revoke, issue again, remove devices and seats, usage, history and CSV export. English and German labels (`locale`, `labels`). Use it only in your own back office, never in the customer app. Since 0.4.0.
+
 ## Storage
 
 The license is kept in `localStorage` (memory fallback). Pass `storage` for Electron, React Native or a cookie-based setup.
