@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
+import { bindLicense, createActivationRequest, readActivationRequest } from "./activation.js";
 import { generateKeyPair } from "./keys.js";
 import { decodeLicense, signLicense, verifyLicense } from "./license.js";
 import { signRevocationList, verifyRevocationList } from "./revocation.js";
@@ -14,6 +15,8 @@ Usage:
                  [--machine <id>] [--revocations <file>]
   integral inspect <license>
   integral revoke <license id>... [--product <name>] [--private-key <key>]
+  integral request <license> --machine <id> [--label <text>]
+  integral activate <request> [--product <name>] [--private-key <key>]
 
 Options for issue:
   --private-key <key>        or INTEGRAL_PRIVATE_KEY, or --private-key-file <path>
@@ -27,7 +30,10 @@ Options for issue:
   --trial                    mark as trial license
   --id <id>  --kid <key id>
 
-A license argument of "-" reads from stdin.`;
+Offline activation: the customer runs "request" (or your app writes the same string to a
+file), you run "activate" on it and send back the license bound to that device.
+
+A license or request argument of "-" reads from stdin.`;
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -193,6 +199,48 @@ export async function main(argv: string[], out = console): Promise<number> {
     });
     const privateKey = await readPrivateKey(values);
     out.log(await signRevocationList({ ids: positionals, product: values.product }, privateKey));
+    return 0;
+  }
+
+  if (command === "request") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      allowPositionals: true,
+      options: { machine: { type: "string" }, label: { type: "string" } },
+    });
+    const arg = positionals[0];
+    if (!arg || !values.machine) throw new Error("request needs a license key and --machine.");
+    const license = arg === "-" ? await readStdin() : arg;
+    out.log(createActivationRequest({ license, machine: values.machine, label: values.label }));
+    return 0;
+  }
+
+  if (command === "activate") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      allowPositionals: true,
+      options: {
+        product: { type: "string" },
+        "private-key": { type: "string" },
+        "private-key-file": { type: "string" },
+      },
+    });
+    const arg = positionals[0];
+    if (!arg) throw new Error("activate needs an activation request.");
+    const request = readActivationRequest(arg === "-" ? await readStdin() : arg);
+    if (!request) {
+      out.error("Not an Integral activation request.");
+      return 1;
+    }
+    const privateKey = await readPrivateKey(values);
+    const result = await bindLicense(request.license, request.machine, privateKey, {
+      product: values.product,
+    });
+    if (!result.ok) {
+      out.error(`refused: ${result.reason}`);
+      return 1;
+    }
+    out.log(result.license);
     return 0;
   }
 

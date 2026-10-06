@@ -12,6 +12,7 @@
         "guides/polar",
         "guides/offline",
         "guides/revocation",
+        "guides/activation",
         "guides/react",
         "guides/cli",
         "guides/updates"

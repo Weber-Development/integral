@@ -23,9 +23,12 @@ description: All exports of @sweberdev/integral and @sweberdev/integral-react.
 | `verifyRevocationList(token, { publicKey, product? })` | Content of a revocation list, or `null` if invalid |
 | `machineId(...values)` | Anonymous SHA-256 device id for `machine` |
 | `licenseStatus(license, { now?, warnDays? })` | `{ state, trial, daysLeft, updatesEnded, updatesDaysLeft }` |
-| `LICENSE_PREFIX`, `REVOCATION_PREFIX` | `"int1"`, `"intr1"` |
+| `bindLicense(license, machine, privateKey, { product?, now? })` | `{ ok: true, license, payload }` with a copy bound to the device, or `{ ok: false, reason }`. See [Device activation](../guides/activation.md) |
+| `createActivationRequest({ license, machine, label? })`, `readActivationRequest(token)` | Activation request (`intq1.…`) for offline activation |
+| `publicKeyFromPrivateKey(privateKey)` | The public key that belongs to a private key |
+| `LICENSE_PREFIX`, `REVOCATION_PREFIX`, `ACTIVATION_PREFIX` | `"int1"`, `"intr1"`, `"intq1"` |
 
-Types: `LicensePayload`, `RevocationList`, `LicenseStatus`, `LicenseState`, `LicenseInput`, `LicenseVerification`, `LicenseInvalidReason`, `Plans`, `PlanDefinition`, `ResolvedPlan`, `Entitlements`, `LimitCheck`, `LimitValue`, `LicenseStorage`, `CheckOutcome`, `CachedOutcome`.
+Types: `LicensePayload`, `RevocationList`, `ActivationRequest`, `BindResult`, `LicenseStatus`, `LicenseState`, `LicenseInput`, `LicenseVerification`, `LicenseInvalidReason`, `Plans`, `PlanDefinition`, `ResolvedPlan`, `Entitlements`, `LimitCheck`, `LimitValue`, `LicenseStorage`, `CheckOutcome`, `CachedOutcome`.
 
 ## `@sweberdev/integral/polar`
 
