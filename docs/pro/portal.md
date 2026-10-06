@@ -80,6 +80,22 @@ Holds one seat of a floating license while the component is mounted: it asks `en
 
 An unstyled admin view for the [admin API](./admin.md): search, license details, revoke, issue again, remove devices and seats, usage, history and CSV export. English and German labels (`locale`, `labels`). Use it only in your own back office, never in the customer app. Since 0.4.0.
 
+## TrialSignup
+
+```tsx
+<TrialSignup endpoint="/api/integral" />
+```
+
+Asks for an email address, requests a trial license from `endpoint/trial` and activates it. It shows clear messages when the address already had a trial or is invalid. Needs the server option `trial`. English and German (`locale`), your own texts through `labels`. Since 0.7.0.
+
+## OfflineActivation
+
+```tsx
+<OfflineActivation machine={machine} deviceLabel="Lab PC" activationUrl="https://app.example.ch/api/integral/offline" />
+```
+
+For computers without internet: the customer enters the license key, copies the activation request to a computer with internet, opens the server's [offline page](./server.md#offline-activation-page), and pastes the license that comes back. The component activates it for this device. Since 0.7.0.
+
 ## Storage
 
 The license is kept in `localStorage` (memory fallback). Pass `storage` for Electron, React Native or a cookie-based setup.

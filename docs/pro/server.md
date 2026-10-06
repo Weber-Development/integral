@@ -53,6 +53,8 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | `POST /lease` `{ license, holder, label?, ttlSeconds? }` | Takes or renews a floating seat, since 0.4.0 |
 | `POST /lease/release` `{ license, holder }` | Gives the seat back, since 0.4.0 |
 | `POST /usage` `{ license, metric, amount?, period? }` | Counts usage against the license's limit, since 0.4.0 |
+| `POST /trial` `{ email, name? }` | Starts a trial license, since 0.7.0 |
+| `GET /offline` | Page that turns an activation request into a license, since 0.7.0 |
 | `GET /public-key` | Public key derived from the private key |
 
 In Polar, add a webhook (Settings → Webhooks) to `https://your-app/api/integral/webhook` with the events `order.paid`, `order.refunded` and all `subscription.*` events. For `/exchange`, attach a **License Keys** benefit to the products.
@@ -196,6 +198,23 @@ createLicenseServer({
 ```
 
 Every counted `recordUsage` is sent to Polar as an event (`POST /v1/events/ingest`) named after the metric, for the Polar customer of the license, with the metadata `amount`, `license_id` and `period`. In Polar, create a meter that filters on this event name and sums `amount`, and attach it to a product. The token needs the `events:write` scope. Use `eventName: (metric) => "app." + metric` to rename events. Refused usage and licenses without a Polar customer (manual or imported ones) are not sent. If Polar cannot be reached, the usage is still counted and `meter_failed` appears in the audit trail.
+
+## Trials
+
+Since 0.7.0 your app can hand out free trials without you issuing them by hand:
+
+```ts
+createLicenseServer({
+  // …
+  trial: { plan: "pro", days: 14 }, // optional: features, limits, seats
+});
+```
+
+`POST /trial { email }` (or `licenses.startTrial({ email })`) returns a license marked `trial` that ends after the trial days; `licenseStatus()` reports it and the [status banner](./portal.md#licensestatusbanner) warns before it ends. Each email address gets one trial: upper and lower case and a `+tag` count as the same address, so `anna+2@example.ch` cannot start a second one. A second request answers `409 trial_used`. With the `mail` option the customer also receives the license by email, which is a simple way to check the address. Put the route behind your own rate limit if your app is public, because a person can still use many addresses. When the customer buys, the paid license replaces the trial.
+
+## Offline activation page
+
+`GET /offline` (add `?lang=de` for German) is a small page without dependencies that turns an activation request into a license bound to the device. Link to it from the portal's [`<OfflineActivation>`](./portal.md#offlineactivation): the customer copies the request from the offline computer, opens the page on any computer with internet, pastes it, and copies the license back. The page uses the normal `/activate` route, so the device limit applies, and it sets a strict content security policy.
 
 ## Lifecycle
 
