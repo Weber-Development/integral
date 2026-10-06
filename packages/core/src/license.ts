@@ -62,8 +62,11 @@ export function decodeLicense(licenseKey: string): LicensePayload | null {
 }
 
 export interface VerifyOptions {
-  /** One public key, or several during key rotation. */
-  publicKey: string | string[];
+  /**
+   * One public key, a list during key rotation, or an object `{ [kid]: publicKey }`: a license
+   * with a `kid` is then checked against that key first.
+   */
+  publicKey: string | string[] | Record<string, string>;
   /** Expected product. A license for another product is rejected. */
   product?: string;
   /** Current time, for tests. */
@@ -80,6 +83,17 @@ export interface VerifyOptions {
    * to any device while this option is missing) is rejected with reason "wrong_machine".
    */
   machine?: string;
+}
+
+/** Public keys to try for a license, the one named by its `kid` first. */
+function keyCandidates(
+  publicKey: string | string[] | Record<string, string>,
+  kid: string | undefined,
+): string[] {
+  if (typeof publicKey === "string") return [publicKey];
+  if (Array.isArray(publicKey)) return publicKey;
+  const named = kid !== undefined ? publicKey[kid] : undefined;
+  return [...(named ? [named] : []), ...Object.values(publicKey).filter((k) => k !== named)];
 }
 
 /** Verifies the signature, product and dates of a license key. Works offline. */
@@ -101,7 +115,7 @@ export async function verifyLicense(
     return { valid: false, reason: "malformed" };
   }
   const data = utf8(`${parts[0]}.${parts[1]}`);
-  const keys = Array.isArray(options.publicKey) ? options.publicKey : [options.publicKey];
+  const keys = keyCandidates(options.publicKey, license.kid);
   let signed = false;
   for (const publicKey of keys) {
     if (await verify(await importPublicKey(publicKey), signature, data)) {

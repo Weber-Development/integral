@@ -7,8 +7,8 @@ The free packages verify licenses. Integral Pro runs the other half: it issues t
 
 | Package | What it does |
 |---|---|
-| [`@weber-development/integral-server`](server.md) | Listens to Polar webhooks and keeps one signed license per order or subscription: issued on purchase, extended on renewal, limited to the paid update period after cancellation, revoked on refund. Storage for SQLite, Postgres and MySQL, a fetch handler for Next.js, Hono, Bun, Deno and Workers |
-| [`@weber-development/integral-portal`](portal.md) | React license activation: customers paste their Polar key, the app exchanges it for a signed license, verifies it offline, stores it, picks up renewals and shows upgrade prompts |
+| [`@weber-development/integral-server`](server.md) | Listens to Polar webhooks and keeps one signed license per order or subscription: issued on purchase, extended on renewal, limited to the paid update period after cancellation, revoked on refund. Storage for SQLite, Postgres and MySQL, a fetch handler for Next.js, Hono, Bun, Deno and Workers. Device activations, floating seats, usage metering and Polar Meters, trials, audit trail, admin API, key rotation, webhooks, license emails and import from Keygen, Cryptlex or CSV |
+| [`@weber-development/integral-portal`](portal.md) | React license activation: customers paste their Polar key, the app exchanges it for a signed license, verifies it offline, stores it, picks up renewals and shows upgrade prompts. Also trial signup, offline activation, floating seats and a license admin view |
 
 ```text
 Polar ── webhook ──▶ integral-server ──▶ database
