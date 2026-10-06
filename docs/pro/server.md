@@ -122,6 +122,51 @@ Every change is stored as an event: issued, renewed, revoked, activated, deactiv
 
 Storage: `sqlSchema` now also creates `<table>_leases`, `<table>_usage` and `<table>_events` (or `integral_licenses_…`). Run it again after updating; it keeps existing data. Custom stores implement the optional methods `listLeases`, `saveLease`, `deleteLease`, `addUsage`, `listUsage`, `saveEvent` and `listEvents`.
 
+## Key rotation
+
+Since 0.5.0 you can replace the signing key without locking anyone out. Generate a new key pair, set the new private key and list the old public key:
+
+```ts
+createLicenseServer({
+  privateKey: process.env.INTEGRAL_PRIVATE_KEY!, // the new key
+  previousPublicKeys: [process.env.INTEGRAL_OLD_PUBLIC_KEY!],
+  // …
+});
+```
+
+Licenses signed with an old key stay valid for the server (refresh, activate, lease, usage). Then ship your app with `await licenses.publicKeys()` (or `GET /public-key`, which answers `publicKeys`): `verifyLicense` accepts a list. `resignAll()` signs every license that is not revoked again with the new key without emailing customers; apps receive the new version with their next refresh. Remove the old key from your apps and the server once no license of it is in use anymore.
+
+## Webhooks
+
+```ts
+createLicenseServer({
+  // …
+  webhooks: [
+    { url: "https://example.ch/hooks/integral", secret: process.env.HOOK_SECRET },
+    { url: process.env.SLACK_URL!, format: "slack", events: ["issued", "revoked"] },
+  ],
+});
+```
+
+Every event of the [audit trail](#audit-trail) is sent to the matching targets. `format` is `json` (default: `{ id, type, at, licenseId, data }`), `slack` or `teams` (a short text). With a `secret`, each request carries `x-integral-signature: sha256=<hex>`, the HMAC-SHA256 of the body; `signDelivery(body, secret)` computes it for your check. A target that does not answer within 5 seconds or fails is skipped and never breaks the license change.
+
+## Emails
+
+```ts
+createLicenseServer({
+  // …
+  mail: {
+    appName: "My App",
+    locale: "de", // or "en"
+    portalUrl: "https://polar.sh/my-org/portal",
+    supportEmail: "support@example.ch",
+    send: ({ to, subject, text, html }) => mailer.send({ from, to, subject, text, html }),
+  },
+});
+```
+
+The customer gets a mail on `issued`, `renewed`, `canceled`, `ended` and `revoked` (option `events` to choose). The license key is included unless the license was revoked or ended. `licenseMail(record, event, options)` returns the texts if you prefer to send them yourself. A failing `send` is logged as `mail_failed` and does not fail the license change.
+
 ## Lifecycle
 
 | Polar event | License |

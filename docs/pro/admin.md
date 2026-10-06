@@ -24,6 +24,7 @@ export { handler as GET, handler as POST };
 | `POST /licenses/:id/reissue` | Issues the license again, e.g. after a lost key |
 | `POST /licenses/:id/devices/remove` `{ machine }` | Frees a device |
 | `POST /licenses/:id/leases/remove` `{ holder }` | Frees a floating seat |
+| `POST /keys/resign` | Signs all licenses again with the current key after a [key rotation](./server.md#key-rotation), since 0.5.0 |
 | `GET /events`, `GET /events.csv` | Audit trail as JSON or CSV (`license`, `limit`) |
 
 The token is compared in constant time. Keep the route behind your own login or network rules as well. In CSV, cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets do not run them. The React [`LicenseAdmin`](./portal.md#licenseadmin) view uses this API.
