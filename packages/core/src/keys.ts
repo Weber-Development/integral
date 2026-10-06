@@ -49,3 +49,13 @@ export async function verify(
 ): Promise<boolean> {
   return subtle().verify(ED25519, key, signature, data);
 }
+
+/** Derives the public key from a private key, e.g. on a server that only stores the private key. */
+export async function publicKeyFromPrivateKey(privateKey: string): Promise<string> {
+  const key = await subtle().importKey("pkcs8", fromBase64Url(privateKey.trim()), ED25519, true, [
+    "sign",
+  ]);
+  const jwk = await subtle().exportKey("jwk", key);
+  if (!jwk.x) throw new Error("Could not derive the public key.");
+  return jwk.x;
+}

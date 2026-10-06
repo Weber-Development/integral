@@ -34,6 +34,7 @@ import {
 - asks `endpoint/refresh` for a renewed license when the update period or expiry is less than `refreshWindowDays` (default 7) away, or the stored license is no longer valid,
 - downloads the signed revocation list from `endpoint/revocations`, keeps the last one for offline use and rejects revoked licenses (`checkRevocations`, default on with `endpoint`),
 - passes `machine` (from `machineId()`) to `verifyLicense`, so device-bound licenses only work on their device,
+- with `bindToMachine` (since 0.3.0), activates every new license through `endpoint/activate` for this device, within the server's device limit, and frees the place again on `remove()`. `deviceLabel` names the device in the customer's list,
 - provides entitlements to `<Feature>`, `<Limit>` and the hooks of `@sweberdev/integral-react`.
 
 Without `endpoint`, only Integral licenses can be entered and nothing is refreshed.

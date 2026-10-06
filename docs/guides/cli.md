@@ -38,3 +38,10 @@ echo "$LICENSE" | npx integral verify - --public-key "$INTEGRAL_PUBLIC_KEY"
 npx integral revoke lic_123 lic_456 --product my-app > revoked.txt   # signed revocation list
 npx integral verify <license> --public-key <key> --revocations revoked.txt --machine <id>
 ```
+
+```sh
+npx integral request <license> --machine <id> --label "Workshop PC" > activation.txt
+npx integral activate - --product my-app < activation.txt
+```
+
+`request` packs a license and a device id for [offline activation](./activation.md). `activate` checks the license with your private key's public key and prints a copy bound to the device. It exits with 1 and the reason if the license is invalid or bound to another device.

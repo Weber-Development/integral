@@ -1,4 +1,14 @@
 export {
+  ACTIVATION_PREFIX,
+  type ActivationRequest,
+  type ActivationRequestInput,
+  type BindOptions,
+  type BindResult,
+  bindLicense,
+  createActivationRequest,
+  readActivationRequest,
+} from "./activation.js";
+export {
   browserStorage,
   type CachedOutcome,
   type CheckOutcome,
@@ -20,7 +30,7 @@ export {
   type ResolvedPlan,
   resolvePlan,
 } from "./entitlements.js";
-export { generateKeyPair, type KeyPair } from "./keys.js";
+export { generateKeyPair, type KeyPair, publicKeyFromPrivateKey } from "./keys.js";
 export {
   coversRelease,
   decodeLicense,

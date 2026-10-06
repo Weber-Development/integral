@@ -52,6 +52,13 @@ await verifyLicense(key, { publicKey, revocations: list, machine: await machineI
 licenseStatus(license); // { state: "expiring", trial: true, daysLeft: 6, ... }
 ```
 
+### Device activation, also offline
+
+```ts
+const result = await bindLicense(license, machine, privateKey); // copy bound to one device
+const request = createActivationRequest({ license, machine }); // as a file, for offline PCs
+```
+
 Documentation and live demo: [packages.sweber.dev/integral](https://packages.sweber.dev/integral)
 
 **Integral Pro** adds a license server that turns Polar orders and subscriptions into signed licenses, and a React activation view: [packages.sweber.dev/integral/docs/pro/overview](https://packages.sweber.dev/integral/docs/pro/overview).

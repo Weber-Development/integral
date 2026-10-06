@@ -48,6 +48,8 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | `POST /exchange` `{ key }` | Polar license key → the customer's signed license |
 | `POST /refresh` `{ license }` | Current version of a license, e.g. after a renewal |
 | `GET /revocations` | Signed list of all revoked licenses (plain text, cached 5 minutes), since 0.2.0 |
+| `POST /activate` `{ license \| key \| request, machine, label? }` | License bound to this device, within the device limit, since 0.3.0 |
+| `POST /deactivate` `{ license, machine }` | Frees the device's place, since 0.3.0 |
 | `GET /public-key` | Public key derived from the private key |
 
 In Polar, add a webhook (Settings → Webhooks) to `https://your-app/api/integral/webhook` with the events `order.paid`, `order.refunded` and all `subscription.*` events. For `/exchange`, attach a **License Keys** benefit to the products.
@@ -63,6 +65,24 @@ const list = await verifyRevocationList(await (await fetch("/api/integral/revoca
 });
 await verifyLicense(license, { publicKey, revocations: list });
 ```
+
+## Device activations
+
+Since 0.3.0 the server can bind licenses to devices and limit how many devices one license may use. The app sends its license (or a Polar key) and its `machineId()` to `/activate` and gets back a copy bound to that device. The [portal](./portal.md) does this with `bindToMachine`.
+
+```ts
+const result = await licenses.activate({ key: polarKey, machine, label: "Office laptop" });
+if (result.ok) result.license; // bound to `machine`
+else result.reason; // "not_found", "revoked", "device_limit", "expired", …
+
+await licenses.deactivate(result.license, machine); // frees the place
+await licenses.activations(licenseId); // [{ machine, label, createdAt, lastSeenAt }]
+```
+
+- The limit is `seats × devicesPerSeat` (option `devicesPerSeat`, default 3). A license without seats counts as one seat. Activating a device that already has a place does not count again.
+- `/refresh` returns a renewed license bound to the same device, so renewals keep the binding.
+- For offline activation, pass the customer's request file as `{ request }` (see [Device activation](../guides/activation.md#offline-activation)). It counts against the same limit.
+- Activations need storage: `memoryStore` and `sqlStore` support them. `sqlSchema` now also creates the table `integral_licenses_activations` (or `<table>_activations`); run it again after updating. Custom stores implement `listActivations`, `saveActivation` and `deleteActivation`.
 
 ## Lifecycle
 
@@ -81,7 +101,7 @@ With `afterCancel: "expire"`, licenses also get `exp`, so they stop working when
 
 - `memoryStore()` for tests.
 - `sqlStore(query, { dialect, table? })` for Postgres (`$1`), SQLite and MySQL (`?`). `query(sql, params)` must return the rows. `sqlSchema({ dialect })` returns the `CREATE TABLE` statement.
-- Or implement `LicenseStore` (`get`, `findBySource`, `findByCustomer`, `save`, `list`) for anything else.
+- Or implement `LicenseStore` (`get`, `findBySource`, `findByCustomer`, `save`, `list`, and for device activations `listActivations`, `saveActivation`, `deleteActivation`) for anything else.
 
 ## Manual licenses
 
