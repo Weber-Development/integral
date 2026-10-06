@@ -1,6 +1,6 @@
 {
   "name": "@sweberdev/integral",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Signed offline license keys, plans and feature entitlements, and Polar.sh license key validation. Zero dependencies, runs in Node, browsers and edge runtimes.",
   "license": "MIT",
   "author": "Seya Weber (https://github.com/sxwxbxr)",
