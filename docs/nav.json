@@ -24,7 +24,7 @@
     },
     {
       "label": "Integral Pro",
-      "items": ["pro/overview", "pro/server", "pro/portal"]
+      "items": ["pro/overview", "pro/server", "pro/admin", "pro/portal"]
     },
     {
       "label": "Legal",

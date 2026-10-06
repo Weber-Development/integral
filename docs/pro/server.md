@@ -50,6 +50,9 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | `GET /revocations` | Signed list of all revoked licenses (plain text, cached 5 minutes), since 0.2.0 |
 | `POST /activate` `{ license \| key \| request, machine, label? }` | License bound to this device, within the device limit, since 0.3.0 |
 | `POST /deactivate` `{ license, machine }` | Frees the device's place, since 0.3.0 |
+| `POST /lease` `{ license, holder, label?, ttlSeconds? }` | Takes or renews a floating seat, since 0.4.0 |
+| `POST /lease/release` `{ license, holder }` | Gives the seat back, since 0.4.0 |
+| `POST /usage` `{ license, metric, amount?, period? }` | Counts usage against the license's limit, since 0.4.0 |
 | `GET /public-key` | Public key derived from the private key |
 
 In Polar, add a webhook (Settings → Webhooks) to `https://your-app/api/integral/webhook` with the events `order.paid`, `order.refunded` and all `subscription.*` events. For `/exchange`, attach a **License Keys** benefit to the products.
@@ -83,6 +86,41 @@ await licenses.activations(licenseId); // [{ machine, label, createdAt, lastSeen
 - `/refresh` returns a renewed license bound to the same device, so renewals keep the binding.
 - For offline activation, pass the customer's request file as `{ request }` (see [Device activation](../guides/activation.md#offline-activation)). It counts against the same limit.
 - Activations need storage: `memoryStore` and `sqlStore` support them. `sqlSchema` now also creates the table `integral_licenses_activations` (or `<table>_activations`); run it again after updating. Custom stores implement `listActivations`, `saveActivation` and `deleteActivation`.
+
+## Floating licenses
+
+Since 0.4.0 a license can be shared between running apps: `seats` is the number of apps that may run at the same time. Each running app is a *holder* (any stable id, e.g. one per window or session). The app calls `lease` when it starts and again as a heartbeat; a seat that is not renewed expires by itself after `leaseSeconds` (default 300, between 30 and 3600).
+
+```ts
+const result = await licenses.lease({ license, holder: "session-42", label: "Anna's laptop" });
+if (result.ok) result.expiresAt; // seat held until then, call again to renew
+else result.reason; // "lease_limit", "revoked", "not_found", …
+
+await licenses.releaseLease(license, "session-42");
+await licenses.leases(licenseId); // who holds a seat right now
+```
+
+Devices and seats are independent: device binding limits where a license is installed, floating seats limit how many run at once. The [portal](./portal.md#uselease) holds a seat with `useLease()`.
+
+## Usage metering
+
+Count what a customer uses and refuse it above the limit stored in the license (`limits` in the plan mapping).
+
+```ts
+const usage = await licenses.recordUsage({ license, metric: "exports", amount: 1 });
+if (!usage.ok) usage.reason; // "limit_reached", …
+else usage.used; // total in this period
+
+await licenses.usage(licenseId); // [{ metric, period, amount }]
+```
+
+The period is `month` (default, option `usagePeriod`), `year` or `none`. A metric without a limit is only counted. Refused usage is not counted.
+
+## Audit trail
+
+Every change is stored as an event: issued, renewed, revoked, activated, deactivated, and seats taken, released or removed. Read them with `licenses.events({ licenseId?, limit? })` (newest first, at most 1000, default 100) or export them from the [admin API](./admin.md).
+
+Storage: `sqlSchema` now also creates `<table>_leases`, `<table>_usage` and `<table>_events` (or `integral_licenses_…`). Run it again after updating; it keeps existing data. Custom stores implement the optional methods `listLeases`, `saveLease`, `deleteLease`, `addUsage`, `listUsage`, `saveEvent` and `listEvents`.
 
 ## Lifecycle
 
