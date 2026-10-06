@@ -20,7 +20,7 @@
     },
     {
       "label": "Reference",
-      "items": ["reference/api"]
+      "items": ["reference/api", "reference/stability"]
     },
     {
       "label": "Integral Pro",
