@@ -167,6 +167,36 @@ createLicenseServer({
 
 The customer gets a mail on `issued`, `renewed`, `canceled`, `ended` and `revoked` (option `events` to choose). The license key is included unless the license was revoked or ended. `licenseMail(record, event, options)` returns the texts if you prefer to send them yourself. A failing `send` is logged as `mail_failed` and does not fail the license change.
 
+## Import from another system
+
+Since 0.6.0 you can move customers from Keygen, Cryptlex or a spreadsheet. Export the licenses as CSV and import them:
+
+```ts
+import { importLicenses, rowsFromCsv } from "@weber-development/integral-server";
+
+const rows = rowsFromCsv(await readFile("licenses.csv", "utf8"));
+const check = await importLicenses(licenses, rows, {
+  plans: { "Pro Yearly": "pro", "Team": "team" }, // plan or policy of the old system → your plan
+  defaultPlan: "pro", // optional; without it unknown plans are refused
+  dryRun: true,
+});
+check.errors; // [{ row: 3, reason: 'unknown plan "Trial"' }]
+await importLicenses(licenses, rows, { plans: { "Pro Yearly": "pro", Team: "team" } });
+```
+
+`rowsFromCsv` finds the columns by common names: `key` or `id` (reference), `email`, `policy`, `plan` or `product`, `expiry` or `expiresAt`, `maxMachines` or `seats`, `name`. Pass `{ plan: "Your column" }` as second argument for other headers. The old keys do not work with Integral: every customer gets a new license, which you can send with [`licenseMail()`](#emails). Importing the same file twice does not create duplicates. Leave the `mail` option unset during the import, or customers get a mail for each license.
+
+## Usage billing with Polar Meters
+
+```ts
+createLicenseServer({
+  // …
+  polarMeters: { accessToken: process.env.POLAR_TOKEN! },
+});
+```
+
+Every counted `recordUsage` is sent to Polar as an event (`POST /v1/events/ingest`) named after the metric, for the Polar customer of the license, with the metadata `amount`, `license_id` and `period`. In Polar, create a meter that filters on this event name and sums `amount`, and attach it to a product. The token needs the `events:write` scope. Use `eventName: (metric) => "app." + metric` to rename events. Refused usage and licenses without a Polar customer (manual or imported ones) are not sent. If Polar cannot be reached, the usage is still counted and `meter_failed` appears in the audit trail.
+
 ## Lifecycle
 
 | Polar event | License |
