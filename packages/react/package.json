@@ -1,6 +1,6 @@
 {
   "name": "@sweberdev/integral-react",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "React bindings for Integral: feature gates, limits and license checks with loading and offline states.",
   "license": "MIT",
   "author": "Seya Weber (https://github.com/sxwxbxr)",
