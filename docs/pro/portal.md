@@ -66,11 +66,24 @@ Shows which plan includes a feature and links to its checkout, for example a Pol
 ## useLease
 
 ```tsx
-const { status, limit, release, retry } = useLease({ holder: "window-1" });
+const { status, limit, offline, release, retry } = useLease({
+  holder: "window-1",
+  offlineGraceSeconds: 120,
+});
 if (status === "full") return <p>All {limit} seats are in use. <button onClick={retry}>Try again</button></p>;
 ```
 
-Holds one seat of a floating license while the component is mounted: it asks `endpoint/lease`, repeats as a heartbeat (a third of the lease time, at least 10 seconds) and gives the seat back on unmount. `status` is `idle`, `acquiring`, `held`, `full` or `error`. Options: `holder`, `label`, `ttlSeconds`, `heartbeatSeconds`, `enabled`. Since 0.4.0.
+Holds one seat of a floating license while the component is mounted: it asks `endpoint/lease`, repeats as a heartbeat (a third of the lease time, at least 10 seconds) and gives the seat back on unmount. `status` is `idle`, `acquiring`, `held`, `full` or `error`. Options: `holder`, `label`, `ttlSeconds`, `heartbeatSeconds`, `enabled`, `offlineGraceSeconds`. Since 0.4.0.
+
+**Offline tolerance (2.0).** With `offlineGraceSeconds` the app keeps working when the server cannot be reached: after a successful heartbeat `status` stays `held` and `offline` is `true` until the grace time has passed, then it becomes `error`. Default 0 (an unreachable server is an `error` at once). The server frees the seat after its own lease time, so keep the grace time at or below it if seats must stay exact.
+
+## DeviceList
+
+```tsx
+<DeviceList endpoint="/api/integral" machine={machineId} />
+```
+
+Shows the devices the license is activated on (`POST endpoint/devices`), marks this device and lets the customer remove one with `POST endpoint/deactivate`, to free a place without contacting you. Options: `locale`, `labels`, `className`, `fetch`. Since 2.0. Whoever holds the license key can see and remove its devices, as with `/deactivate`.
 
 ## LicenseAdmin
 

@@ -9,7 +9,7 @@ Integral 2.0 changes the default license format and needs Node 22. Licenses you 
 
 1. Update `@sweberdev/integral` (and `@sweberdev/integral-react`) in your app. Existing `int1` licenses still verify.
 2. If you use Integral Pro, update to `@weber-development/integral-server` and `-portal` 2.x at the same time. Pro 1.0.1 already accepts the 2.x free packages, so you can update in two steps.
-3. Run `sqlSchema` again (Pro). It only adds tables and columns.
+3. Run `sqlSchema` again (Pro) if you have not since 1.0. 2.0 itself changes no tables.
 4. Optionally convert old licenses with `integral migrate`, see below.
 
 ## Breaking changes
@@ -21,8 +21,9 @@ Integral 2.0 changes the default license format and needs Node 22. Licenses you 
 | **`LICENSE_PREFIX` is `"int2"`**, `REVOCATION_PREFIX` is `"intr2"`. The old values are `LEGACY_LICENSE_PREFIX` and `LEGACY_REVOCATION_PREFIX`. | Code that checks `license.startsWith("int1.")` should accept both, or use `decodeLicense`. |
 | **`LicensePayload.v` is `1 \| 2`.** | Only affects code that narrows on `v === 1`. |
 | **`signLicense`, `bindLicense` and friends take a `SigningKey`** (private key string or `Signer`). | Strings keep working. |
-| **Pro: unified handler options for sources.** Polar is the first entry of `sources`; the old `polar` option keeps working in 2.x and is read as `sources.polar`. | See the Pro server page. |
-| **Pro: new store tables or columns** for devices and leases. | Run `sqlSchema` again. |
+| **Pro: `createLicenseServer` takes `privateKey` or `signer`.** Both are optional in the types; one is required at runtime. | Nothing to do if you pass `privateKey`. |
+| **Pro: handler options for sources.** `sources: [polarSource(…), …]` is new; `webhookSecret` is optional and still means Polar at `/webhook`, but the handler throws at start if neither is set. | See [Other payment sources](pro/server.md). |
+| **Pro: `LicenseServer` has a new method `devices()`** (custom implementations or mocks of the interface need it). | Add it if you wrap or mock `LicenseServer`. The store interface is unchanged: no new tables or columns. |
 
 Revocation lists and activation requests: `intr1` lists are still read; `intq1` requests do not change.
 
