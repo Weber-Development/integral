@@ -20,7 +20,7 @@ describe("revocation lists", () => {
     );
     const kept = await signLicense({ product: "app", plan: "pro", id: "lic_b" }, pair.privateKey);
     const token = await signRevocationList({ ids: ["lic_a"], product: "app" }, pair.privateKey);
-    expect(token.startsWith("intr1.")).toBe(true);
+    expect(token.startsWith("intr2.")).toBe(true);
     const list = await verifyRevocationList(token, { publicKey: pair.publicKey, product: "app" });
     expect(list?.ids).toEqual(["lic_a"]);
     const a = await verifyLicense(revoked, { publicKey: pair.publicKey, revocations: list });

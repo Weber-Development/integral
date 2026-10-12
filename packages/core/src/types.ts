@@ -9,8 +9,8 @@ export interface LicenseCustomer {
 
 /** The signed content of an Integral license. Dates are ISO 8601 strings. */
 export interface LicensePayload {
-  /** Format version, always 1. */
-  v: 1;
+  /** Format version: 1 in `int1` licenses, 2 in `int2` licenses. */
+  v: 1 | 2;
   /** Unique license id. */
   id: string;
   /** Your product, e.g. "my-app". Checked by `verifyLicense({ product })`. */

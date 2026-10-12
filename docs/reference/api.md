@@ -7,7 +7,10 @@ description: All exports of @sweberdev/integral and @sweberdev/integral-react.
 
 | Export | Description |
 |---|---|
-| `generateKeyPair()` | New Ed25519 key pair as base64url strings `{ publicKey, privateKey }` |
+| `generateKeyPair({ alg? })` | New key pair as strings `{ publicKey, privateKey }`; `alg` is `"EdDSA"` (default) or `"ES256"` |
+| `upgradeLicense(license, privateKey, { publicKey? })` | Signs an `int1` license again as `int2` with the same id and data, see [Migrating to 2.0](../migrating-to-2.md) |
+| `ecdsaDerToRaw(der)` | Converts a DER ECDSA signature (AWS KMS, Azure, Vault) to the raw form `ES256` uses |
+| `publicKeyAlgorithm(key)` | `"EdDSA"` or `"ES256"` for a public key string |
 | `signLicense(input, privateKey)` | Signs a license, returns the license key. `id` and `iat` are added if missing; dates may be `Date` or ISO strings |
 | `verifyLicense(license, options)` | `{ valid: true, license }` or `{ valid: false, reason, license? }`. Options: `publicKey` (string or array), `product`, `now`, `clockTolerance`, `revocations`, `machine` |
 | `decodeLicense(license)` | Content without checking the signature, or `null` |
@@ -19,14 +22,14 @@ description: All exports of @sweberdev/integral and @sweberdev/integral-react.
 | `EntitlementError` | Thrown by `require()`; has `feature` and `plan` |
 | `withOfflineGrace(check, options)` | Cache and grace period for online checks, see [Offline grace](../guides/offline.md) |
 | `memoryStorage()`, `browserStorage(prefix?)` | Storage for `withOfflineGrace` |
-| `signRevocationList({ ids, product?, iat? }, privateKey)` | Signed list of revoked license ids (`intr1.…`), see [Revocation](../guides/revocation.md) |
+| `signRevocationList({ ids, product?, iat? }, privateKey)` | Signed list of revoked license ids (`intr2.…`, `intr1.…` is still read), see [Revocation](../guides/revocation.md) |
 | `verifyRevocationList(token, { publicKey, product? })` | Content of a revocation list, or `null` if invalid |
 | `machineId(...values)` | Anonymous SHA-256 device id for `machine` |
 | `licenseStatus(license, { now?, warnDays? })` | `{ state, trial, daysLeft, updatesEnded, updatesDaysLeft }` |
 | `bindLicense(license, machine, privateKey, { product?, now? })` | `{ ok: true, license, payload }` with a copy bound to the device, or `{ ok: false, reason }`. See [Device activation](../guides/activation.md) |
 | `createActivationRequest({ license, machine, label? })`, `readActivationRequest(token)` | Activation request (`intq1.…`) for offline activation |
 | `publicKeyFromPrivateKey(privateKey)` | The public key that belongs to a private key |
-| `LICENSE_PREFIX`, `REVOCATION_PREFIX`, `ACTIVATION_PREFIX` | `"int1"`, `"intr1"`, `"intq1"` |
+| `LICENSE_PREFIX`, `REVOCATION_PREFIX`, `ACTIVATION_PREFIX` | `"int2"`, `"intr2"`, `"intq1"` (`LEGACY_LICENSE_PREFIX`, `LEGACY_REVOCATION_PREFIX`: `"int1"`, `"intr1"`) |
 
 Types: `LicensePayload`, `RevocationList`, `ActivationRequest`, `BindResult`, `LicenseStatus`, `LicenseState`, `LicenseInput`, `LicenseVerification`, `LicenseInvalidReason`, `Plans`, `PlanDefinition`, `ResolvedPlan`, `Entitlements`, `LimitCheck`, `LimitValue`, `LicenseStorage`, `CheckOutcome`, `CachedOutcome`.
 

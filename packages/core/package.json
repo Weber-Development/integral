@@ -14,6 +14,9 @@
     "url": "https://github.com/Weber-Development/integral/issues"
   },
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

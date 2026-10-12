@@ -1,6 +1,6 @@
 # Integral
 
-Licenses, plans and feature entitlements for developers who sell software. Signed offline license keys (Ed25519), plans with features and limits, Polar.sh license key validation and React feature gates. Zero dependencies; runs in Node 20+, browsers, Bun, Deno and edge runtimes.
+Licenses, plans and feature entitlements for developers who sell software. Signed offline license keys (Ed25519 and ECDSA P-256), plans with features and limits, Polar.sh license key validation and React feature gates. Zero dependencies; runs in Node 22+, browsers, Bun, Deno and edge runtimes.
 
 | Package | What it does |
 |---|---|

@@ -6,6 +6,8 @@ description: Create key pairs, issue, verify and inspect licenses from the termi
 ```sh
 npx integral keygen                 # prints INTEGRAL_PUBLIC_KEY and INTEGRAL_PRIVATE_KEY
 npx integral keygen --out ./keys    # writes two files, the private one with mode 600
+npx integral keygen --alg es256     # ECDSA P-256 instead of Ed25519 (for KMS/HSM keys)
+npx integral migrate <license>...   # re-signs int1 licenses as int2, one per line on stdout
 ```
 
 ```sh

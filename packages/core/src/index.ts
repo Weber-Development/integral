@@ -7,6 +7,9 @@ export {
   bindLicense,
   createActivationRequest,
   readActivationRequest,
+  type UpgradeOptions,
+  type UpgradeResult,
+  upgradeLicense,
 } from "./activation.js";
 export {
   browserStorage,
@@ -30,18 +33,31 @@ export {
   type ResolvedPlan,
   resolvePlan,
 } from "./entitlements.js";
-export { generateKeyPair, type KeyPair, publicKeyFromPrivateKey } from "./keys.js";
+export {
+  type Algorithm,
+  ecdsaDerToRaw,
+  generateKeyPair,
+  type KeyPair,
+  P256_PREFIX,
+  publicKeyAlgorithm,
+  publicKeyFromPrivateKey,
+  type Signer,
+  type SigningKey,
+} from "./keys.js";
 export {
   coversRelease,
   decodeLicense,
+  LEGACY_LICENSE_PREFIX,
   LICENSE_PREFIX,
   type LicenseInput,
+  type SignOptions,
   signLicense,
   type VerifyOptions,
   verifyLicense,
 } from "./license.js";
 export { machineId } from "./machine.js";
 export {
+  LEGACY_REVOCATION_PREFIX,
   REVOCATION_PREFIX,
   type RevocationInput,
   type RevocationList,
@@ -55,6 +71,7 @@ export {
   type LicenseStatusOptions,
   licenseStatus,
 } from "./status.js";
+export type { PublicKeys } from "./token.js";
 export type {
   LicenseCustomer,
   LicenseInvalidReason,

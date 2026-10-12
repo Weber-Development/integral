@@ -7,7 +7,7 @@ Integral is a technical tool for issuing and checking licenses. It is **not lega
 
 **Integral does**
 
-- sign licenses with Ed25519 and verify them offline with your public key,
+- sign licenses with Ed25519 or ECDSA P-256 and verify them offline with your public key,
 - check Polar license keys through Polar's public API,
 - with Integral Pro, issue, renew and revoke licenses from Polar orders and subscriptions.
 

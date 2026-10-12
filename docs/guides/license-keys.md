@@ -3,7 +3,7 @@ title: License keys
 description: The license format, what it contains and how verification works.
 ---
 
-An Integral license is a string like `int1.eyJ2IjoxLC….Qx8f…`: a prefix, the license data as base64url JSON, and an Ed25519 signature over both. It fits in an environment variable, a license file or a text field.
+An Integral license is a string like `int2.eyJhbGci….eyJ2IjoyLC….Qx8f…`: a prefix, a small header (algorithm and optional key id), the license data as base64url JSON, and a signature over all three. The algorithm is Ed25519 or ECDSA P-256, see [Signing keys and KMS](signing.md). Licenses from 1.x (`int1.…`) are still read. It fits in an environment variable, a license file or a text field.
 
 ## Contents
 

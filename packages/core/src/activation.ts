@@ -1,6 +1,7 @@
 import { fromBase64Url, fromUtf8, toBase64Url, utf8 } from "./encoding.js";
-import { publicKeyFromPrivateKey } from "./keys.js";
+import { publicKeyFromPrivateKey, type SigningKey } from "./keys.js";
 import { decodeLicense, signLicense, verifyLicense } from "./license.js";
+import { type PublicKeys, parseToken, verifyToken } from "./token.js";
 import type { LicenseInvalidReason, LicensePayload } from "./types.js";
 
 /** Prefix of an activation request. */
@@ -65,6 +66,11 @@ export function readActivationRequest(token: string): ActivationRequest | null {
 }
 
 export interface BindOptions {
+  /**
+   * Public key(s) to check the license with. Needed when `privateKey` is a `Signer` (KMS);
+   * with a private key string it is derived from it. Pass all keys while rotating.
+   */
+  publicKey?: PublicKeys;
   /** Expected product. A license for another product is refused. */
   product?: string;
   /** Current time, for tests. */
@@ -83,13 +89,13 @@ export type BindResult =
 export async function bindLicense(
   license: string,
   machine: string,
-  privateKey: string,
+  privateKey: SigningKey,
   options: BindOptions = {},
 ): Promise<BindResult> {
   const device = machine.trim();
   if (!device) throw new Error("bindLicense needs a machine id.");
   const result = await verifyLicense(license, {
-    publicKey: await publicKeyFromPrivateKey(privateKey),
+    publicKey: options.publicKey ?? (await publicKeyOf(privateKey)),
     product: options.product,
     now: options.now,
     machine: device,
@@ -106,4 +112,42 @@ export async function bindLicense(
     privateKey,
   );
   return { ok: true, license: bound, payload: decodeLicense(bound) as LicensePayload };
+}
+
+async function publicKeyOf(key: SigningKey): Promise<string> {
+  if (typeof key !== "string") {
+    throw new Error("Pass options.publicKey when signing with a Signer.");
+  }
+  return publicKeyFromPrivateKey(key);
+}
+
+export interface UpgradeOptions {
+  /** Public key(s) the old license was signed with. Default: the key of `privateKey`. */
+  publicKey?: PublicKeys;
+}
+
+export type UpgradeResult =
+  | { ok: true; license: string; payload: LicensePayload }
+  | { ok: false; reason: "malformed" | "bad_signature" };
+
+/**
+ * Signs an `int1` license again as `int2` with the same id, plan, dates, device and customer, so
+ * revocation lists and renewals still match. Only the signature and format change. Expired
+ * licenses are converted too; an `int2` license is returned as it is.
+ */
+export async function upgradeLicense(
+  license: string,
+  privateKey: SigningKey,
+  options: UpgradeOptions = {},
+): Promise<UpgradeResult> {
+  const parsed = parseToken(license, "int1", "int2");
+  const payload = decodeLicense(license);
+  if (!parsed || !payload) return { ok: false, reason: "malformed" };
+  const keys = options.publicKey ?? (await publicKeyOf(privateKey));
+  if (!(await verifyToken(parsed, keys, payload.kid)))
+    return { ok: false, reason: "bad_signature" };
+  if (parsed.format === 2) return { ok: true, license: license.trim(), payload };
+  const { v: _v, ...rest } = payload;
+  const upgraded = await signLicense(rest, privateKey);
+  return { ok: true, license: upgraded, payload: decodeLicense(upgraded) as LicensePayload };
 }
