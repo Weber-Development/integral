@@ -5,5 +5,7 @@
     "@sweberdev/integral": "1.0.0",
     "@sweberdev/integral-react": "1.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "integral-two"
+  ]
 }
