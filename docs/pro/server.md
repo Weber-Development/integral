@@ -45,6 +45,8 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | Route | Purpose |
 |---|---|
 | `POST /webhook` | Polar webhook endpoint. Verifies the signature and age of each delivery |
+| `POST /webhook/<source>` | Webhook of another payment source (`stripe`, `paddle`, `lemonsqueezy` or your own), since 2.0 |
+| `POST /devices` `{ license }` | Devices the license is activated on and the limit, for the customer's own view, since 2.0 |
 | `POST /exchange` `{ key }` | Polar license key → the customer's signed license |
 | `POST /refresh` `{ license }` | Current version of a license, e.g. after a renewal |
 | `GET /revocations` | Signed list of all revoked licenses (plain text, cached 5 minutes), since 0.2.0 |
@@ -55,9 +57,70 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | `POST /usage` `{ license, metric, amount?, period? }` | Counts usage against the license's limit, since 0.4.0 |
 | `POST /trial` `{ email, name? }` | Starts a trial license, since 0.7.0 |
 | `GET /offline` | Page that turns an activation request into a license, since 0.7.0 |
-| `GET /public-key` | Public key derived from the private key |
+| `GET /public-key` | Public key of the signing key (and `publicKeys` with the earlier ones) |
 
 In Polar, add a webhook (Settings → Webhooks) to `https://your-app/api/integral/webhook` with the events `order.paid`, `order.refunded` and all `subscription.*` events. For `/exchange`, attach a **License Keys** benefit to the products.
+
+## Other payment sources
+
+Since 2.0 the handler takes a list of **sources**. Each one checks the signature of its provider's webhook and hands a normalized event to the same logic as Polar, so licenses, renewals, cancellations, refunds, emails, webhooks and the audit trail work the same. Ids are prefixed (`stripe:sub_…`), so the sources never collide.
+
+```ts
+import {
+  createLicenseHandler,
+  lemonSqueezySource,
+  paddleSource,
+  polarSource,
+  stripeSource,
+} from "@weber-development/integral-server";
+
+const handler = createLicenseHandler(licenses, {
+  basePath: "/api/integral",
+  sources: [
+    polarSource({ secret: process.env.POLAR_WEBHOOK_SECRET! }),
+    stripeSource({ secret: process.env.STRIPE_WEBHOOK_SECRET!, apiKey: process.env.STRIPE_KEY }),
+    paddleSource({ secret: process.env.PADDLE_WEBHOOK_SECRET!, apiKey: process.env.PADDLE_KEY }),
+    lemonSqueezySource({ secret: process.env.LS_WEBHOOK_SECRET!, oneTimeProducts: ["777"] }),
+  ],
+});
+```
+
+`webhookSecret` still works and is the same as `polarSource` at `/webhook`. Point each provider to `/webhook/<name>`: `polar`, `stripe`, `paddle`, `lemonsqueezy`. Map the provider's product ids in `plans` (Stripe `prod_…`, Paddle `pro_…`, Lemon Squeezy numeric `product_id` as a string).
+
+| Source | Events handled | Notes |
+|---|---|---|
+| Polar | `order.paid`, `order.refunded`, `subscription.*` | Verified in production use |
+| Stripe | `customer.subscription.created\|updated\|deleted`, `checkout.session.completed` (mode `payment`) | Stripe does not send the email with subscription events: pass `apiKey` (a restricted key that can read customers) or `customer` for your own lookup. One-time checkouts take the product from `metadata.product_id` or the `product` option. Refunds of one-time payments: revoke by hand |
+| Paddle Billing | `subscription.*`, `transaction.completed` without a subscription | Email via `apiKey` or `customer`, as with Stripe |
+| Lemon Squeezy | `subscription_*`, `order_created` and `order_refunded` for `oneTimeProducts` | Lemon Squeezy sends `order_created` for every subscription payment too, so list only the products you sell once |
+
+**Beta.** The Stripe, Paddle and Lemon Squeezy sources follow the providers' documentation (signature schemes, event fields) and are tested with locally signed sample events. They were **not verified against real provider accounts**. Test them in the providers' test mode, check the first licenses in the admin view and report differences. A `PaymentSource` is just `{ name, verify(body, headers) }` returning a Polar-shaped event or `null`, so you can adapt a provider that differs.
+
+## Signing with a KMS or HSM
+
+Instead of `privateKey` the server takes a `signer` and the matching `publicKey`. The private key never leaves the service.
+
+```ts
+import { vaultTransitSigner } from "@weber-development/integral-server";
+
+createLicenseServer({
+  signer: vaultTransitSigner({
+    url: process.env.VAULT_ADDR!,
+    token: process.env.VAULT_TOKEN!,
+    key: "licenses",
+    alg: "ES256", // transit key type ecdsa-p256
+    kid: "2027-a",
+  }),
+  publicKey: process.env.INTEGRAL_PUBLIC_KEY!, // p256.…
+  // …
+});
+```
+
+- `vaultTransitSigner` signs over the HTTP API of HashiCorp Vault's transit engine (`ecdsa-p256` or `ed25519` keys). Tested against a mocked API.
+- `kmsSigner({ alg, kid, sign })` wraps any KMS call: for `ES256` it hashes the message with SHA-256, passes you the digest and converts the DER answer. AWS KMS (`Sign` with `MessageType: "DIGEST"`, `ECDSA_SHA_256`), Google Cloud KMS (`asymmetricSign` with `digest.sha256`) and Azure Key Vault (`sign` with `ES256`, `signature: "raw"`) fit this shape. Pass the call of your SDK; Integral adds no SDK dependency.
+- `publicKeyFromSpki(derOrPem, alg)` turns the public key you export from the KMS into the string for `publicKey` and your apps.
+
+**Beta.** Only the Vault adapter has a (mocked) test, and none of the three cloud recipes was run against a real account. Sign and verify one license in your setup before you rely on it. The same signer works with `bindLicense`, `signRevocationList` and `resignAll`, so activation, revocation and rotation keep working.
 
 ## Revocation list
 
@@ -130,8 +193,8 @@ Since 0.5.0 you can replace the signing key without locking anyone out. Generate
 
 ```ts
 createLicenseServer({
-  privateKey: process.env.INTEGRAL_PRIVATE_KEY!, // the new key
-  previousPublicKeys: [process.env.INTEGRAL_OLD_PUBLIC_KEY!],
+  privateKey: process.env.INTEGRAL_PRIVATE_KEY!, // the new key (Ed25519 or P-256)
+  previousPublicKeys: [process.env.INTEGRAL_OLD_PUBLIC_KEY!], // may use the other algorithm
   // …
 });
 ```

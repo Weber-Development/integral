@@ -1,6 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { bindLicense, createActivationRequest, readActivationRequest } from "./activation.js";
+import {
+  bindLicense,
+  createActivationRequest,
+  readActivationRequest,
+  upgradeLicense,
+} from "./activation.js";
 import { generateKeyPair } from "./keys.js";
 import { decodeLicense, signLicense, verifyLicense } from "./license.js";
 import { signRevocationList, verifyRevocationList } from "./revocation.js";
@@ -9,11 +14,12 @@ import type { LimitValue } from "./types.js";
 const HELP = `integral – signed license keys
 
 Usage:
-  integral keygen [--out <dir>]
+  integral keygen [--alg ed25519|es256] [--out <dir>]
   integral issue --product <name> --plan <plan> [options]
   integral verify <license> --public-key <key> [--product <name>]
                  [--machine <id>] [--revocations <file>]
   integral inspect <license>
+  integral migrate <license>... [--file <path>] [--private-key <key>]
   integral revoke <license id>... [--product <name>] [--private-key <key>]
   integral request <license> --machine <id> [--label <text>]
   integral activate <request> [--product <name>] [--private-key <key>]
@@ -29,6 +35,9 @@ Options for issue:
   --machine <id>             bind to one device (id from machineId())
   --trial                    mark as trial license
   --id <id>  --kid <key id>
+  --format int2|int1         default int2, int1 only for apps still on 1.x
+
+migrate re-signs int1 licenses as int2 (same id, dates and entitlements), one per line.
 
 Offline activation: the customer runs "request" (or your app writes the same string to a
 file), you run "activate" on it and send back the license bound to that device.
@@ -75,8 +84,13 @@ export async function main(argv: string[], out = console): Promise<number> {
   }
 
   if (command === "keygen") {
-    const { values } = parseArgs({ args: rest, options: { out: { type: "string" } } });
-    const pair = await generateKeyPair();
+    const { values } = parseArgs({
+      args: rest,
+      options: { out: { type: "string" }, alg: { type: "string" } },
+    });
+    if (values.alg && values.alg !== "ed25519" && values.alg !== "es256")
+      throw new Error('--alg must be "ed25519" or "es256".');
+    const pair = await generateKeyPair({ alg: values.alg === "es256" ? "ES256" : undefined });
     if (values.out) {
       await writeFile(`${values.out}/integral-public.key`, `${pair.publicKey}\n`);
       await writeFile(`${values.out}/integral-private.key`, `${pair.privateKey}\n`, {
@@ -111,9 +125,12 @@ export async function main(argv: string[], out = console): Promise<number> {
         kid: { type: "string" },
         machine: { type: "string" },
         trial: { type: "boolean" },
+        format: { type: "string" },
       },
     });
     const privateKey = await readPrivateKey(values);
+    if (values.format && values.format !== "int1" && values.format !== "int2")
+      throw new Error('--format must be "int1" or "int2".');
     if (!values.product || !values.plan) throw new Error("issue needs --product and --plan.");
     const customer =
       values.email || values["customer-id"] || values.name
@@ -135,9 +152,42 @@ export async function main(argv: string[], out = console): Promise<number> {
         trial: values.trial || undefined,
       },
       privateKey,
+      { format: values.format === "int1" ? "int1" : "int2" },
     );
     out.log(license);
     return 0;
+  }
+
+  if (command === "migrate") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      allowPositionals: true,
+      options: {
+        file: { type: "string" },
+        "private-key": { type: "string" },
+        "private-key-file": { type: "string" },
+        "public-key": { type: "string" },
+      },
+    });
+    const privateKey = await readPrivateKey(values);
+    const tokens = [...positionals];
+    if (values.file) tokens.push(...(await readFile(values.file, "utf8")).split(/\s+/));
+    if (tokens.includes("-"))
+      tokens.splice(tokens.indexOf("-"), 1, ...(await readStdin()).split(/\s+/));
+    const licenses = tokens.filter(Boolean);
+    if (!licenses.length) throw new Error("migrate needs at least one license.");
+    let failed = 0;
+    for (const license of licenses) {
+      const result = await upgradeLicense(license, privateKey, {
+        publicKey: values["public-key"] ?? process.env.INTEGRAL_PUBLIC_KEY,
+      });
+      if (result.ok) out.log(result.license);
+      else {
+        failed++;
+        out.error(`skipped (${result.reason}): ${license.slice(0, 24)}...`);
+      }
+    }
+    return failed ? 1 : 0;
   }
 
   if (command === "verify" || command === "inspect") {

@@ -1,12 +1,14 @@
-import { fromBase64Url, fromUtf8, toBase64Url, utf8 } from "./encoding.js";
-import { importPrivateKey, importPublicKey, sign, verify } from "./keys.js";
+import type { SigningKey } from "./keys.js";
+import { type PublicKeys, parseToken, signLegacyToken, signToken, verifyToken } from "./token.js";
 
-/** Prefix of a signed revocation list. */
-export const REVOCATION_PREFIX = "intr1";
+/** Prefix of revocation lists signed since 2.0: `intr2.<header>.<payload>.<signature>`. */
+export const REVOCATION_PREFIX = "intr2";
+/** Prefix of the revocation lists of 1.x. Still read in 2.x. */
+export const LEGACY_REVOCATION_PREFIX = "intr1";
 
 /** The signed content of a revocation list. */
 export interface RevocationList {
-  v: 1;
+  v: 1 | 2;
   /** Product the list belongs to. Checked by `verifyRevocationList({ product })`. */
   product?: string;
   /** Issued at. A newer list replaces an older one. */
@@ -19,6 +21,8 @@ export interface RevocationInput {
   ids: Iterable<string>;
   product?: string;
   iat?: string | Date;
+  /** `intr2` (default) or `intr1` for apps that still run Integral 1.x (Ed25519 key only). */
+  format?: "intr1" | "intr2";
 }
 
 /**
@@ -28,24 +32,25 @@ export interface RevocationInput {
  */
 export async function signRevocationList(
   input: RevocationInput,
-  privateKey: string,
+  privateKey: SigningKey,
 ): Promise<string> {
   const iat = input.iat ? new Date(input.iat) : new Date();
   if (Number.isNaN(iat.getTime())) throw new Error(`Invalid date: ${String(input.iat)}`);
+  const legacy = input.format === "intr1";
   const list: RevocationList = {
-    v: 1,
+    v: legacy ? 1 : 2,
     ...(input.product ? { product: input.product } : {}),
     iat: iat.toISOString(),
     ids: [...new Set(input.ids)].sort(),
   };
-  const body = `${REVOCATION_PREFIX}.${toBase64Url(utf8(JSON.stringify(list)))}`;
-  const key = await importPrivateKey(privateKey);
-  return `${body}.${toBase64Url(await sign(key, utf8(body)))}`;
+  return legacy
+    ? signLegacyToken(LEGACY_REVOCATION_PREFIX, list, privateKey)
+    : signToken(REVOCATION_PREFIX, list, privateKey);
 }
 
 export interface VerifyRevocationOptions {
-  /** One public key, or several during key rotation. */
-  publicKey: string | string[];
+  /** One public key, a list during key rotation, or an object `{ [kid]: publicKey }`. */
+  publicKey: PublicKeys;
   /** Expected product. A list for another product is rejected. */
   product?: string;
 }
@@ -58,27 +63,10 @@ export async function verifyRevocationList(
   token: string,
   options: VerifyRevocationOptions,
 ): Promise<RevocationList | null> {
-  const parts = token.trim().split(".");
-  if (parts.length !== 3 || parts[0] !== REVOCATION_PREFIX || !parts[1] || !parts[2]) return null;
-  let list: RevocationList;
-  let signature: Uint8Array<ArrayBuffer>;
-  try {
-    list = JSON.parse(fromUtf8(fromBase64Url(parts[1])));
-    signature = fromBase64Url(parts[2]);
-  } catch {
-    return null;
-  }
-  if (list?.v !== 1 || !Array.isArray(list.ids)) return null;
-  const data = utf8(`${parts[0]}.${parts[1]}`);
-  const keys = Array.isArray(options.publicKey) ? options.publicKey : [options.publicKey];
-  let signed = false;
-  for (const publicKey of keys) {
-    if (await verify(await importPublicKey(publicKey), signature, data)) {
-      signed = true;
-      break;
-    }
-  }
-  if (!signed) return null;
+  const parsed = parseToken(token, LEGACY_REVOCATION_PREFIX, REVOCATION_PREFIX);
+  const list = parsed?.payload as RevocationList | undefined;
+  if (!parsed || list?.v !== parsed.format || !Array.isArray(list.ids)) return null;
+  if (!(await verifyToken(parsed, options.publicKey))) return null;
   if (options.product && list.product && list.product !== options.product) return null;
   return list;
 }

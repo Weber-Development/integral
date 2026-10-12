@@ -1,10 +1,13 @@
-import { fromBase64Url, fromUtf8, toBase64Url, utf8 } from "./encoding.js";
-import { importPrivateKey, importPublicKey, sign, verify } from "./keys.js";
+import { toBase64Url } from "./encoding.js";
+import type { SigningKey } from "./keys.js";
 import type { RevocationList } from "./revocation.js";
+import { type PublicKeys, parseToken, signLegacyToken, signToken, verifyToken } from "./token.js";
 import type { LicensePayload, LicenseVerification } from "./types.js";
 
-/** Prefix of every license key. Bumped only on incompatible format changes. */
-export const LICENSE_PREFIX = "int1";
+/** Prefix of license keys issued since 2.0: `int2.<header>.<payload>.<signature>`. */
+export const LICENSE_PREFIX = "int2";
+/** Prefix of the license keys of 1.x: `int1.<payload>.<signature>`. Still read in 2.x. */
+export const LEGACY_LICENSE_PREFIX = "int1";
 
 export type LicenseInput = Omit<LicensePayload, "v" | "id" | "iat"> & {
   id?: string;
@@ -24,16 +27,27 @@ function toIso(value: string | Date | undefined): string | undefined {
   return date.toISOString();
 }
 
+export interface SignOptions {
+  /** `int2` (default) or `int1` for apps that still run Integral 1.x. `int1` needs an Ed25519 key. */
+  format?: "int1" | "int2";
+}
+
 /**
- * Signs a license with your private key and returns the license key string
- * (`int1.<payload>.<signature>`). Run this on your server or in your CLI only.
+ * Signs a license and returns the license key string (`int2.<header>.<payload>.<signature>`).
+ * `privateKey` is a PKCS#8 key from `generateKeyPair` (Ed25519 or P-256) or a `Signer` for a key
+ * in a KMS. Run this on your server or in your CLI only.
  */
-export async function signLicense(input: LicenseInput, privateKey: string): Promise<string> {
+export async function signLicense(
+  input: LicenseInput,
+  privateKey: SigningKey,
+  options: SignOptions = {},
+): Promise<string> {
   if (!input.product) throw new Error("License needs a product.");
   if (!input.plan) throw new Error("License needs a plan.");
+  const legacy = options.format === "int1";
   const payload: LicensePayload = {
     ...input,
-    v: 1,
+    v: legacy ? 1 : 2,
     id: input.id ?? randomId(),
     iat: toIso(input.iat) ?? new Date().toISOString(),
   };
@@ -41,9 +55,9 @@ export async function signLicense(input: LicenseInput, privateKey: string): Prom
     const iso = toIso(payload[field]);
     if (iso) payload[field] = iso;
   }
-  const body = `${LICENSE_PREFIX}.${toBase64Url(utf8(JSON.stringify(payload)))}`;
-  const key = await importPrivateKey(privateKey);
-  return `${body}.${toBase64Url(await sign(key, utf8(body)))}`;
+  return legacy
+    ? signLegacyToken(LEGACY_LICENSE_PREFIX, payload, privateKey)
+    : signToken(LICENSE_PREFIX, payload, privateKey);
 }
 
 /**
@@ -51,14 +65,9 @@ export async function signLicense(input: LicenseInput, privateKey: string): Prom
  * never make access decisions from it.
  */
 export function decodeLicense(licenseKey: string): LicensePayload | null {
-  const parts = licenseKey.trim().split(".");
-  if (parts.length !== 3 || parts[0] !== LICENSE_PREFIX || !parts[1]) return null;
-  try {
-    const payload = JSON.parse(fromUtf8(fromBase64Url(parts[1])));
-    return payload && typeof payload === "object" ? (payload as LicensePayload) : null;
-  } catch {
-    return null;
-  }
+  const parsed = parseToken(licenseKey, LEGACY_LICENSE_PREFIX, LICENSE_PREFIX);
+  const payload = parsed?.payload;
+  return payload && typeof payload === "object" ? (payload as LicensePayload) : null;
 }
 
 export interface VerifyOptions {
@@ -66,7 +75,7 @@ export interface VerifyOptions {
    * One public key, a list during key rotation, or an object `{ [kid]: publicKey }`: a license
    * with a `kid` is then checked against that key first.
    */
-  publicKey: string | string[] | Record<string, string>;
+  publicKey: PublicKeys;
   /** Expected product. A license for another product is rejected. */
   product?: string;
   /** Current time, for tests. */
@@ -85,45 +94,18 @@ export interface VerifyOptions {
   machine?: string;
 }
 
-/** Public keys to try for a license, the one named by its `kid` first. */
-function keyCandidates(
-  publicKey: string | string[] | Record<string, string>,
-  kid: string | undefined,
-): string[] {
-  if (typeof publicKey === "string") return [publicKey];
-  if (Array.isArray(publicKey)) return publicKey;
-  const named = kid !== undefined ? publicKey[kid] : undefined;
-  return [...(named ? [named] : []), ...Object.values(publicKey).filter((k) => k !== named)];
-}
-
 /** Verifies the signature, product and dates of a license key. Works offline. */
 export async function verifyLicense(
   licenseKey: string,
   options: VerifyOptions,
 ): Promise<LicenseVerification> {
-  const parts = licenseKey.trim().split(".");
-  if (parts.length !== 3 || parts[0] !== LICENSE_PREFIX)
-    return { valid: false, reason: "malformed" };
+  const parsed = parseToken(licenseKey, LEGACY_LICENSE_PREFIX, LICENSE_PREFIX);
   const license = decodeLicense(licenseKey);
-  if (!license) return { valid: false, reason: "malformed" };
-  if (license.v !== 1) return { valid: false, reason: "unsupported_version" };
-
-  let signature: Uint8Array<ArrayBuffer>;
-  try {
-    signature = fromBase64Url(parts[2] ?? "");
-  } catch {
-    return { valid: false, reason: "malformed" };
+  if (!parsed || !license) return { valid: false, reason: "malformed" };
+  if (license.v !== parsed.format) return { valid: false, reason: "unsupported_version" };
+  if (!(await verifyToken(parsed, options.publicKey, license.kid))) {
+    return { valid: false, reason: "bad_signature" };
   }
-  const data = utf8(`${parts[0]}.${parts[1]}`);
-  const keys = keyCandidates(options.publicKey, license.kid);
-  let signed = false;
-  for (const publicKey of keys) {
-    if (await verify(await importPublicKey(publicKey), signature, data)) {
-      signed = true;
-      break;
-    }
-  }
-  if (!signed) return { valid: false, reason: "bad_signature" };
 
   if (options.product && license.product !== options.product) {
     return { valid: false, reason: "wrong_product", license };

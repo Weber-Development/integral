@@ -15,7 +15,7 @@ describe("license keys", () => {
       { product: "app", plan: "pro", features: ["export"], customer: { email: "a@b.ch" } },
       pair.privateKey,
     );
-    expect(key.startsWith("int1.")).toBe(true);
+    expect(key.startsWith("int2.")).toBe(true);
     const result = await verifyLicense(key, { publicKey: pair.publicKey, product: "app" });
     expect(result.valid).toBe(true);
     if (result.valid) {
@@ -26,10 +26,10 @@ describe("license keys", () => {
 
   it("rejects a tampered payload", async () => {
     const key = await signLicense({ product: "app", plan: "free" }, pair.privateKey);
-    const [prefix, , signature] = key.split(".");
+    const [prefix, header, , signature] = key.split(".");
     const forged = { ...decodeLicense(key), plan: "pro" };
     const body = Buffer.from(JSON.stringify(forged)).toString("base64url");
-    const result = await verifyLicense(`${prefix}.${body}.${signature}`, {
+    const result = await verifyLicense(`${prefix}.${header}.${body}.${signature}`, {
       publicKey: pair.publicKey,
     });
     expect(result).toEqual({ valid: false, reason: "bad_signature" });

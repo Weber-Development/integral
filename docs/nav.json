@@ -9,6 +9,7 @@
       "items": [
         "guides/plans",
         "guides/license-keys",
+        "guides/signing",
         "guides/polar",
         "guides/offline",
         "guides/revocation",
@@ -20,7 +21,7 @@
     },
     {
       "label": "Reference",
-      "items": ["reference/api", "reference/stability"]
+      "items": ["reference/api", "reference/stability", "migrating-to-2"]
     },
     {
       "label": "Integral Pro",
