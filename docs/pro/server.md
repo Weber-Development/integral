@@ -47,6 +47,7 @@ export { handler as GET, handler as POST, handler as OPTIONS };
 | `POST /webhook` | Polar webhook endpoint. Verifies the signature and age of each delivery |
 | `POST /webhook/<source>` | Webhook of another payment source (`stripe`, `paddle`, `lemonsqueezy` or your own), since 2.0 |
 | `POST /devices` `{ license }` | Devices the license is activated on and the limit, for the customer's own view, since 2.0 |
+| `POST /overview` `{ license, periods? }` | Plan, status, dates, features, limits, usage per period, seats in use and devices for the customer's own view, since 2.1 |
 | `POST /exchange` `{ key }` | Polar license key → the customer's signed license |
 | `POST /refresh` `{ license }` | Current version of a license, e.g. after a renewal |
 | `GET /revocations` | Signed list of all revoked licenses (plain text, cached 5 minutes), since 0.2.0 |
@@ -90,11 +91,17 @@ const handler = createLicenseHandler(licenses, {
 | Source | Events handled | Notes |
 |---|---|---|
 | Polar | `order.paid`, `order.refunded`, `subscription.*` | Verified in production use |
-| Stripe | `customer.subscription.created\|updated\|deleted`, `checkout.session.completed` (mode `payment`) | Stripe does not send the email with subscription events: pass `apiKey` (a restricted key that can read customers) or `customer` for your own lookup. One-time checkouts take the product from `metadata.product_id` or the `product` option. Refunds of one-time payments: revoke by hand |
-| Paddle Billing | `subscription.*`, `transaction.completed` without a subscription | Email via `apiKey` or `customer`, as with Stripe |
+| Stripe | `customer.subscription.created\|updated\|deleted`, `checkout.session.completed` (mode `payment`) | Stripe does not send the email with subscription events: pass `apiKey` (a restricted key that can read customers) or `customer` for your own lookup. One-time checkouts take the product from `metadata.product_id` or the `product` option. Since 2.1 `charge.refunded` (full refunds) revokes the license and `cancel_at` counts as a cancellation at the period end |
+| Paddle Billing | `subscription.*`, `transaction.completed` without a subscription, approved refund `adjustment.*` (since 2.1) | Email via `apiKey` or `customer`, as with Stripe |
 | Lemon Squeezy | `subscription_*`, `order_created` and `order_refunded` for `oneTimeProducts` | Lemon Squeezy sends `order_created` for every subscription payment too, so list only the products you sell once |
 
 **Beta.** The Stripe, Paddle and Lemon Squeezy sources follow the providers' documentation (signature schemes, event fields) and are tested with locally signed sample events. They were **not verified against real provider accounts**. Test them in the providers' test mode, check the first licenses in the admin view and report differences. A `PaymentSource` is just `{ name, verify(body, headers) }` returning a Polar-shaped event or `null`, so you can adapt a provider that differs.
+
+Partial refunds are not treated as a revocation; revoke by hand if you want that.
+
+## Customer overview
+
+`server.overview(license, { periods })` (1 to 24 periods, default 3) and `POST /overview` return what a customer wants to see about their license: plan, status, `exp`, `updatesUntil`, features, limits, usage per metric and period (current period first), floating seats in use with their holders, and the devices with the device limit. Revoked or unknown licenses are refused. The portal's `CustomerPortal` shows it. Since 2.1. Whoever holds the license key can read it, as with `/devices`.
 
 ## Signing with a KMS or HSM
 

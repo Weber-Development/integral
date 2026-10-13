@@ -85,6 +85,14 @@ Holds one seat of a floating license while the component is mounted: it asks `en
 
 Shows the devices the license is activated on (`POST endpoint/devices`), marks this device and lets the customer remove one with `POST endpoint/deactivate`, to free a place without contacting you. Options: `locale`, `labels`, `className`, `fetch`. Since 2.0. Whoever holds the license key can see and remove its devices, as with `/deactivate`.
 
+## CustomerPortal
+
+```tsx
+<CustomerPortal endpoint="/api/integral" machine={machineId} periods={3} />
+```
+
+Self-service overview from `POST endpoint/overview`: plan, status (with a renew hint when expired), validity and update period, features, limits, usage per metric and period as meters, floating seats in use, and the `DeviceList`. Options: `periods`, `hideDevices`, `locale`, `labels`, `className`, `fetch`. Since 2.1.
+
 ## LicenseAdmin
 
 ```tsx
