@@ -51,3 +51,13 @@ Documentation and live demo: [packages.sweber.dev/integral](https://packages.swe
 Integral is not copy protection: anyone who can change your app can remove a check. It makes honest use easy.
 
 MIT © Seya Weber
+
+<!-- pro-promo -->
+## Integral Pro
+
+Need more than the free package? **Integral Pro** adds:
+
+- License server: Polar webhooks, issuing, renewing and revoking licenses, SQL storage
+- React portal: license activation with Polar key exchange, offline verification, automatic renewal and upgrade prompts
+
+Subscriptions from CHF 12 per month, or a one-time lifetime licence. [See what is included](https://packages.sweber.dev/integral?utm_source=npm&utm_medium=readme&utm_campaign=pro)
